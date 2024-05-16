@@ -6,7 +6,14 @@ from tqdm import tqdm
 from itertools import repeat
 from copy import deepcopy
 from shutil import rmtree
+from argparse import ArgumentParser
 import os
+
+def parse_args():
+    parser = ArgumentParser()
+    parser.add_argument('-s', '--sec', type=int, default=1)
+    args = parser.parse_args()
+    return args
 
 def read_contest(csv_file):
     with Path(csv_file).open("r") as f:
@@ -44,10 +51,10 @@ def extract_config(item):
     config["load_buffer_size"] = str(int(item[17]))
     config["store_buffer_size"] = str(int(item[18]))
 
-    config["icache/icache_config"] = "{},{}".format(int(item[19]), int(item[20]))
+    config["icache/icache_config"] = "16384,{},{}".format(int(item[19]), int(item[20]))
     config["icache/itlb_config"] = "{},{}".format(int(item[21]), int(item[22]))
 
-    config["dcache/dcache_config"] = "{},{}".format(int(item[23]), int(item[24]))
+    config["dcache/dcache_config"] = "16384,{},{}".format(int(item[23]), int(item[24]))
     config["dcache/replacement_policy"] = str(int(item[25]))
     config["dcache/mshr_entries"] = str(int(item[26]))
     config["dcache/dtlb_config"] = "{},{}".format(int(item[27]), int(item[28]))
@@ -80,43 +87,54 @@ def process_mcpat_report(rpt_file):
     return area, dynamic, sleak, gleak
 
 def mcpat(args):
-    line, tpt, iid, res_file = args
+    line, tpt, iid, res_file, temp_dir = args
     xml_data = deepcopy(tpt)
     # iid = md5(str(line).encode()).hexdigest()
     config = extract_config(line)
     apply_config(config, xml_data)
-    xml_data.write("temp/{}.xml".format(iid))
-    os.system("../mcpat -infile temp/{}.xml -print_level 5 > temp/{}.rpt".format(iid, iid))
-    area, dynamic, sleak, gleak = process_mcpat_report("temp/{}.rpt".format(iid))
-    with Path(res_file).open("a") as f:
-        f.write("{},{},{},{},{}\n".format(iid, area, dynamic, sleak, gleak))
-    Path("temp/{}.xml".format(iid)).unlink()
-    Path("temp/{}.rpt".format(iid)).unlink()
+    xml_data.write(f"{temp_dir}/{iid}.xml")
+    os.system(f"../mcpat -infile {temp_dir}/{iid}.xml -print_level 5 > {temp_dir}/{iid}.rpt")
+    try:
+        area, dynamic, sleak, gleak = process_mcpat_report(f"{temp_dir}/{iid}.rpt")
+        with Path(res_file).open("a") as f:
+            f.write("{},{},{},{},{}\n".format(iid, area, dynamic, sleak, gleak))
+    except:
+        with Path(res_file).open("a") as f:
+            f.write("{},{},{},{},{}\n".format(iid, None, None, None, None))
+    Path(f"{temp_dir}/{iid}.xml").unlink()
+    Path(f"{temp_dir}/{iid}.rpt").unlink()
 
 
 if __name__ == "__main__":
+    args = parse_args()
+    sec = args.sec    
+
     contest_data = read_contest("contest.csv")
     iids = list(range(1, len(contest_data)+1))
     tpt = ET.parse('template_wo_gem5.xml')
-
-    tmp_dir = Path("temp")
+    
+    tmp_dir = Path(f"temp_{sec}")
     if tmp_dir.exists():
         rmtree(tmp_dir)
     tmp_dir.mkdir()
 
-    res_file = Path("data1.csv")
+    res_file = Path(f"data_{sec}.csv")
     if res_file.exists():
         res_file.unlink()
     with res_file.open("w") as f:
         f.write("id,area,dynamic,sleak,gleak\n")
+    
+    start = len(contest_data) // 4 * (sec - 1)
+    end = len(contest_data) // 4 * sec
+    contest_data = contest_data[start:end]
+    iids = iids[start:end]
 
-    # contest_data = contest_data[:]
-    # iids = iids[:10]
-
-    with Pool(32) as p:
+    with Pool(1) as p:
         list(
             tqdm(
-                p.imap(mcpat, zip(contest_data, repeat(tpt), iids, repeat(res_file))),
+                p.imap(mcpat, zip(contest_data, repeat(tpt), iids, repeat(res_file), repeat(tmp_dir.name))),
                 total=len(contest_data),
             )
         )
+
+    rmtree(tmp_dir)

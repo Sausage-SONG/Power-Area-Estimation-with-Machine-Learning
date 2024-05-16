@@ -161,4 +161,4 @@ cython_debug/
 
 tf_logs/
 saved_logs/
-data/temp/
+data/temp*/
