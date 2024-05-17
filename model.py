@@ -38,18 +38,20 @@ class LitMLP(L.LightningModule):
         return self.model(x)
 
     def training_step(self, batch, batch_idx):
-        arch, pfm, pw, area, tvf = batch
-        output = self(arch)
+        iid, area, dpw, sleak, gleak, gt_area, gt_pw = batch
+        x = torch.stack([area, dpw, sleak, gleak], dim=1)
+        output = self(x)
         pw_hat, area_hat = output[:, 0], output[:, 1]
-        loss = self.loss(pw_hat, pw) + self.loss(area_hat, area)
+        loss = self.loss(pw_hat, gt_pw) + self.loss(area_hat, gt_area)
         self.log("train_loss", loss, sync_dist=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        arch, pfm, pw, area, tvf = batch
-        output = self(arch)
+        iid, area, dpw, sleak, gleak, gt_area, gt_pw = batch
+        x = torch.stack([area, dpw, sleak, gleak], dim=1)
+        output = self(x)
         pw_hat, area_hat = output[:, 0], output[:, 1]
-        loss = self.loss(pw_hat, pw) + self.loss(area_hat, area)
+        loss = self.loss(pw_hat, gt_pw) + self.loss(area_hat, gt_area)
         self.log("val_loss", loss, sync_dist=True)
         return loss
 

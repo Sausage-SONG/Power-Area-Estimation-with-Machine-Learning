@@ -18,13 +18,14 @@ from model import LitMLP
 
 parser = ArgumentParser()
 parser.add_argument("-c", "--config", type=str, default="configs/mlp.yaml")
+parser.add_argument("--debug", action='store_true')
 args = parser.parse_args()
 with open(args.config, "r") as f:
     config = yaml.safe_load(f)
 args.__dict__.update(config)
 
 with open(args.csv_file, "r") as f:
-    data_size = len(f.readlines())
+    data_size = len(f.readlines()) - 1
 for fold in range(args.k_fold):
 
     trn_split = list(range(0, fold * data_size // args.k_fold)) + list(range((fold + 1) * data_size // args.k_fold, data_size))
@@ -48,8 +49,8 @@ for fold in range(args.k_fold):
         patience=args.patience * 10,
         mode="min",
     )
-    callbacks = [device_stats, lr_monitor, ckpt_callback, early_stopping]
-    logger = TensorBoardLogger(Path(__file__).parent / "tf_logs", name=args.name, version=fold)
+    callbacks = [device_stats, lr_monitor, ckpt_callback, early_stopping] if not args.debug else []
+    logger = TensorBoardLogger(Path(__file__).parent / "tf_logs", name=args.name, version=fold) if not args.debug else False 
 
     trainer = L.Trainer(
         accelerator="gpu",

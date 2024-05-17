@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 import lightning as L
+import pandas as pd
 
 from pathlib import Path
 
@@ -12,23 +13,21 @@ class ICCAD(Dataset):
         super().__init__()
 
         self.csv_file = Path(csv_file)
-        with self.csv_file.open("r") as f:
-            lines = f.readlines()
-        lines = list(map(lambda x: x.strip().split("    "), lines))
-        lines = [[float(x) for x in row] for row in lines]
-        self.data = torch.tensor(lines, dtype=torch.float)[split]
+        self.data = pd.read_csv(self.csv_file, dtype='float32').iloc[split]
+        self.data.reset_index(inplace=True, drop=True)
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        row = self.data[idx]
-        arch = row[:-4]
-        pfm = row[-4]
-        pw = row[-3]
-        area = row[-2]
-        tvf = row[-1]
-        return arch, pfm, pw, area, tvf
+        iid = self.data.at[idx, "id"]
+        area = self.data.at[idx, "area"]
+        dpw = self.data.at[idx, "dynamic"]
+        sleak = self.data.at[idx, "sleak"]
+        gleak = self.data.at[idx, "gleak"]
+        gt_area = self.data.at[idx, "gt_area"]
+        gt_pw = self.data.at[idx, "gt_pw"]
+        return iid, area, dpw, sleak, gleak, gt_area, gt_pw 
 
 
 class LitICCAD(L.LightningDataModule):
@@ -56,4 +55,6 @@ class LitICCAD(L.LightningDataModule):
 
 
 if __name__ == "__main__":
-    dataset = ICCAD("contest.csv", [0, 100])
+    dataset = ICCAD("data/data.csv", [0, 100])
+    res = dataset[0]
+    breakpoint()
