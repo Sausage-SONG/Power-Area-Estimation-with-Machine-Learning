@@ -14,7 +14,7 @@ from argparse import ArgumentParser
 import yaml
 
 from dataset import LitICCAD
-from model import LitMLP
+from model import * 
 
 parser = ArgumentParser()
 parser.add_argument("-c", "--config", type=str, default="configs/mlp.yaml")
@@ -31,7 +31,7 @@ for fold in range(args.k_fold):
     trn_split = list(range(0, fold * data_size // args.k_fold)) + list(range((fold + 1) * data_size // args.k_fold, data_size))
     val_split = list(range(fold * data_size // args.k_fold, (fold + 1) * data_size // args.k_fold))
 
-    model = LitMLP(args)
+    model = eval(args.model_name)(args)
     dm = LitICCAD(args, trn_split, val_split)
 
     device_stats = DeviceStatsMonitor()

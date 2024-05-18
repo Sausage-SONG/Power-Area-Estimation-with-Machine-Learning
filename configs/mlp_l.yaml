@@ -4,10 +4,10 @@ k_fold: 10
 alpha: [10, 0.0000001]
 # max_epochs: 2000
 
-channels: [4, 32, 64, 16, 2]
+channels: [4, 64, 128, 32, 16, 2]
 lr: 0.0003
 weight_decay: 0
 patience: 15
 
-name: "mlp"
+name: "mlp_l"
 model_name: "LitMLP"

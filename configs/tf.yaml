@@ -4,10 +4,17 @@ k_fold: 10
 alpha: [10, 0.0000001]
 # max_epochs: 2000
 
-channels: [4, 32, 64, 16, 2]
+in_channel: 4
+out_channel: 2
+d_model: 64
+n_head: 8
+dim_feedforward: 256
+norm_first: False
+num_layer: 3
+
 lr: 0.0003
 weight_decay: 0
 patience: 15
 
-name: "mlp"
-model_name: "LitMLP"
+name: "tf"
+model_name: "LitTF"
