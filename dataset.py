@@ -9,26 +9,26 @@ from pathlib import Path
 
 class ICCAD(Dataset):
 
-    def __init__(self, csv_file, split):
+    def __init__(self, csv_file, split, alpha):
         super().__init__()
 
         self.csv_file = Path(csv_file)
-        self.data = pd.read_csv(self.csv_file, dtype='float32').iloc[split]
-        self.data.reset_index(inplace=True, drop=True)
+        df = pd.read_csv(self.csv_file, dtype='float32').iloc[split]
+        df = df.drop(columns=["gt_pf", "gt_t"])
+        df.reset_index(inplace=True, drop=True)
+        df = torch.tensor(df.values)
+        gt_pw_err = (df[:, 2:5].sum(dim=1) - df[:, -2]).abs().unsqueeze(-1)
+        gt_area_err = (df[:, 1] - df[:, -1]).abs().unsqueeze(-1)
+
+        norm = (df - df.mean(dim=0)) / df.std(dim=0)
+        self.data = torch.hstack([norm[:, :-2], df[:, [-2]] * alpha[-2], df[:, [-1]]*alpha[-1], gt_pw_err, gt_area_err])
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        iid = self.data.at[idx, "id"]
-        area = self.data.at[idx, "area"]
-        dpw = self.data.at[idx, "dynamic"]
-        sleak = self.data.at[idx, "sleak"]
-        gleak = self.data.at[idx, "gleak"]
-        gt_area = self.data.at[idx, "gt_area"]
-        gt_pw = self.data.at[idx, "gt_pw"]
-        return iid, area, dpw, sleak, gleak, gt_area, gt_pw 
-
+        iid, area, dpw, sleak, gleak, gt_pw, gt_area, gt_pw_err, gt_area_err = self.data[idx]
+        return iid, area, dpw, sleak, gleak, gt_pw, gt_area, gt_pw_err, gt_area_err
 
 class LitICCAD(L.LightningDataModule):
 
@@ -39,8 +39,8 @@ class LitICCAD(L.LightningDataModule):
         self.val_split = val_split
 
     def setup(self, stage=None):
-        self.train_ds = ICCAD(self.args.csv_file, self.trn_split)
-        self.val_ds = ICCAD(self.args.csv_file, self.val_split)
+        self.train_ds = ICCAD(self.args.csv_file, self.trn_split, self.args.alpha)
+        self.val_ds = ICCAD(self.args.csv_file, self.val_split, self.args.alpha)
 
     def train_dataloader(self):
         return DataLoader(
@@ -55,6 +55,5 @@ class LitICCAD(L.LightningDataModule):
 
 
 if __name__ == "__main__":
-    dataset = ICCAD("data/data.csv", [0, 100])
+    dataset = ICCAD("data/data.csv", list(range(15000)), [10, 1e-7])
     res = dataset[0]
-    breakpoint()

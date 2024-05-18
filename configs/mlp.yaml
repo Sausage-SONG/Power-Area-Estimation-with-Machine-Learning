@@ -1,6 +1,7 @@
 csv_file: "data/data.csv"
 batch_size: 2048
 k_fold: 10
+alpha: [10, 0.0000001]
 # max_epochs: 2000
 
 channels: [4, 32, 64, 16, 2]
