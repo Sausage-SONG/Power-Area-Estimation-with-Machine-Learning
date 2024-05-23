@@ -8,15 +8,15 @@ arch_embed_dim: 4
 
 in_channel: 4
 out_channel: 2
-d_model: 64
+d_model: 256 
 n_head: 8
-dim_feedforward: 256
-norm_first: True 
-num_layer: 3
+dim_feedforward: 1024
+norm_first: False
+num_layer: 6
 
 lr: 0.0003
 weight_decay: 0
 patience: 30
 
-name: "tf"
+name: "tf_xl"
 model_name: "LitTF"

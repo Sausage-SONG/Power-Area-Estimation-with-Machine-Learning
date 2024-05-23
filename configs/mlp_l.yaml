@@ -2,6 +2,8 @@ csv_file: "data/data.csv"
 batch_size: 2048
 k_fold: 10
 alpha: [10, 0.0000001]
+arch_sizes: [2, 5, 5, 2, 11, 5, 5, 10, 5, 5, 10, 11, 14, 10, 16, 12, 13, 9, 9, 2, 3, 2, 2, 1, 3, 2, 3, 2, 2]
+arch_embed_dim: 4
 # max_epochs: 2000
 
 channels: [4, 64, 128, 32, 16, 2]

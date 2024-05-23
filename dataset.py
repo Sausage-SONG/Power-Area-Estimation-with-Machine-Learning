@@ -17,18 +17,19 @@ class ICCAD(Dataset):
         df = df.drop(columns=["gt_pf", "gt_t"])
         df.reset_index(inplace=True, drop=True)
         df = torch.tensor(df.values)
-        gt_pw_err = (df[:, 2:5].sum(dim=1) - df[:, -2]).abs().unsqueeze(-1)
-        gt_area_err = (df[:, 1] - df[:, -1]).abs().unsqueeze(-1)
+        gt_pw_err = (df[:, 2:5].sum(dim=1) - df[:, 5]).abs().unsqueeze(-1)
+        gt_area_err = (df[:, 1] - df[:, 6]).abs().unsqueeze(-1)
 
         norm = (df - df.mean(dim=0)) / df.std(dim=0)
-        self.data = torch.hstack([norm[:, :-2], df[:, [-2]] * alpha[-2], df[:, [-1]]*alpha[-1], gt_pw_err, gt_area_err])
+        self.data = torch.hstack([df[:, [0]], norm[:, 1:5], df[:, [5]] * alpha[-2], df[:, [6]]*alpha[-1], gt_pw_err, gt_area_err, df[:, 7:]])
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        iid, area, dpw, sleak, gleak, gt_pw, gt_area, gt_pw_err, gt_area_err = self.data[idx]
-        return iid, area, dpw, sleak, gleak, gt_pw, gt_area, gt_pw_err, gt_area_err
+        arch = self.data[idx, 9:].to(torch.int)
+        iid, area, dpw, sleak, gleak, gt_pw, gt_area, gt_pw_err, gt_area_err = self.data[idx, :9]
+        return iid, area, dpw, sleak, gleak, arch, gt_pw, gt_area, gt_pw_err, gt_area_err
 
 class LitICCAD(L.LightningDataModule):
 
