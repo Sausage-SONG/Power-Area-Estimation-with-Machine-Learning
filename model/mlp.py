@@ -14,7 +14,7 @@ class MLP(nn.Module):
         self.channels = channels
         self.layers = []
         for i in range(len(channels) - 1):
-            if i == 0:
+            if i == 0 and arch_sizes is not None:
                 self.layers.append(nn.Linear(channels[i]*2, channels[i + 1]))
             else:
                 self.layers.append(nn.Linear(channels[i], channels[i + 1]))
@@ -22,22 +22,23 @@ class MLP(nn.Module):
         self.layers = self.layers[:-1]
         self.layers = nn.Sequential(*self.layers)
 
-        self.arch_embed = []
-        for arch_size in arch_sizes:
-            self.arch_embed.append(nn.Embedding(arch_size, arch_embed_dim))
-        self.arch_embed = nn.ModuleList(self.arch_embed)
-        self.arch_output = nn.Linear(arch_embed_dim * len(arch_sizes), channels[0])
+        if arch_sizes is not None:
+            self.arch_embed = []
+            for arch_size in arch_sizes:
+                self.arch_embed.append(nn.Embedding(arch_size, arch_embed_dim))
+            self.arch_embed = nn.ModuleList(self.arch_embed)
+            self.arch_output = nn.Linear(arch_embed_dim * len(arch_sizes), channels[0])
 
-    def forward(self, x, arch):
-        arch_feature = []
-        for i in range(len(self.arch_embed)):
-            arch_feature.append(self.arch_embed[i](arch[:, i]))
-        arch_feature = torch.stack(arch_feature, dim=1)
-        arch_feature = rearrange(arch_feature, "b n d -> b (n d)")
-        arch_feature = self.arch_output(arch_feature)
-
-        input = torch.cat([x, arch_feature], dim=1)
-        return self.layers(input)
+    def forward(self, x, arch=None):
+        if arch is not None:
+            arch_feature = []
+            for i in range(len(self.arch_embed)):
+                arch_feature.append(self.arch_embed[i](arch[:, i]))
+            arch_feature = torch.stack(arch_feature, dim=1)
+            arch_feature = rearrange(arch_feature, "b n d -> b (n d)")
+            arch_feature = self.arch_output(arch_feature)
+            x = torch.cat([x, arch_feature], dim=1)
+        return self.layers(x)
 
 
 class LitMLP(L.LightningModule):
@@ -56,12 +57,13 @@ class LitMLP(L.LightningModule):
     def mae(self, x1, x2):
         return (x1 - x2).abs().sum() / len(x1)
 
-    def forward(self, x, arch):
+    def forward(self, x, arch=None):
         return self.model(x, arch)
 
     def training_step(self, batch, batch_idx):
         iid, area, dpw, sleak, gleak, arch, gt_pw, gt_area, gt_pw_err, gt_area_err = batch
         x = torch.stack([area, dpw, sleak, gleak], dim=1)
+        arch = arch if self.args.arch_sizes is not None else None
         output = self(x, arch)
         pw_hat, area_hat = output[:, 0], output[:, 1]
         
@@ -81,6 +83,7 @@ class LitMLP(L.LightningModule):
     def validation_step(self, batch, batch_idx):
         iid, area, dpw, sleak, gleak, arch, gt_pw, gt_area, gt_pw_err, gt_area_err = batch
         x = torch.stack([area, dpw, sleak, gleak], dim=1)
+        arch = arch if self.args.arch_sizes is not None else None
         output = self(x, arch)
         pw_hat, area_hat = output[:, 0], output[:, 1]
         
@@ -100,6 +103,7 @@ class LitMLP(L.LightningModule):
     def test_step(self, batch, batch_idx):
         iid, area, dpw, sleak, gleak, arch, gt_pw, gt_area, gt_pw_err, gt_area_err = batch
         x = torch.stack([area, dpw, sleak, gleak], dim=1)
+        arch = arch if self.args.arch_sizes is not None else None
         output = self(x, arch)
         pw_hat, area_hat = output[:, 0], output[:, 1]
         
